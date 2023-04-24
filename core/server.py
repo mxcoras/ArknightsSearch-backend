@@ -1,0 +1,40 @@
+import asyncio
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .config import config
+
+
+class App(FastAPI):
+    def __init__(self, dev: bool = config.dev):
+        super().__init__() if dev else super().__init__(
+            docs_url=None,
+            redoc_url=None,
+            openapi_url=None
+        )
+
+    async def run(self):
+        self.add_middleware(
+            CORSMiddleware,
+            allow_origins=['*'],
+            allow_methods=['*'],
+            allow_headers=['*'],
+            allow_credentials=True
+        )
+        await uvicorn.Server(uvicorn.Config(
+            app=self,
+            **config.server.params
+        )).serve()
+
+    def start(self):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+
+        loop.run_until_complete(self.run())
+
+
+app = App()
