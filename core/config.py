@@ -19,7 +19,6 @@ class Config:
     def __init__(self, data: dict):
         data = data or {}
         self.server: Server = Server(data.get('server'))
-        self.dev: bool = data.get('dev', False)
 
 
 try:

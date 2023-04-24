@@ -8,13 +8,6 @@ from .config import config
 
 
 class App(FastAPI):
-    def __init__(self, dev: bool = config.dev):
-        super().__init__() if dev else super().__init__(
-            docs_url=None,
-            redoc_url=None,
-            openapi_url=None
-        )
-
     async def run(self):
         self.add_middleware(
             CORSMiddleware,
