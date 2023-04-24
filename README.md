@@ -7,6 +7,7 @@ ArkSearch后端
 
  - [ ] 优化extraCharData
  - [ ] i18n
+ - [ ] api文档
 
 ## 鸣谢
  
