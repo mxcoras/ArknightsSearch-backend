@@ -18,6 +18,7 @@ class Server:
 class Config:
     def __init__(self, data: dict):
         data = data or {}
+        self.key: str = data.get('key')
         self.server: Server = Server(data.get('server'))
 
 
