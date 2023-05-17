@@ -66,10 +66,11 @@ async def run():
             print(f'[{x}/{y}] upload {file[1]} failed \n{res}')
 
     async with client.put(server + 'restart', headers=sign(key)) as r:
-        if r.ok:
+        resp = await r.json()
+        if resp['code'] == 200:
             print('restart server')
         else:
-            print('restart failed', r.status)
+            print('restart failed', resp['data']['code'])
             raise ValueError
 
     await client.close()
