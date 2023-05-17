@@ -5,9 +5,9 @@ ArkSearch后端
 
  ## TODO
 
- - [ ] 优化extraCharData
  - [ ] i18n
  - [ ] api文档
+ - [x] 优化extraCharData
 
 ## 鸣谢
  
