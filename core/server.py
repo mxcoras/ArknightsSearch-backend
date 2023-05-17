@@ -41,7 +41,7 @@ class App(FastAPI):
         # shutdown 不能正常关闭？🤔
         await self.server.shutdown()
         await asyncio.sleep(1)
-        raise KeyboardInterrupt
+        self.loop.stop()
 
     async def shutdown(self, req: Request, key: str):
         if req.client.host != '127.0.0.1' or key != config.key:
