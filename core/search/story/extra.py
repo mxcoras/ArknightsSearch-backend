@@ -10,13 +10,17 @@ from .data import *
 
 class TextData(BaseModel):
     type: Literal['text'] = 'text'
-    data: list[str | None]
+    data: list[list[str | None]]
+    has_more: bool
     raw: str
 
     @classmethod
-    def get(cls, match: re.Match, raw: str) -> 'TextData':
+    def get(cls, match: list[list[str]], raw: str) -> 'TextData':
         self = cls.__new__(cls)
-        self.__init__(data=[match.group(i) for i in range(1, 6)], raw=raw)
+        if len(match) > 5:
+            self.__init__(data=match[:5], raw=raw, has_more=True)
+        else:
+            self.__init__(data=match, raw=raw, has_more=False)
         return self
 
 
@@ -56,6 +60,6 @@ class Extra:
 
     def get(self, story_id: str) -> list[ExtraData]:
         text = text_data['zh_CN'][story_id]
-        match = [TextData.get(r[1].search(text), r[0]) for r in self.text_regexes] \
+        match = [TextData.get(r[1].findall(text), r[0]) for r in self.text_regexes] \
                 + [CharData.get(r[1].findall(text), r[0]) for r in self.char_regexes]
         return match
