@@ -1,4 +1,4 @@
-import os
+import sys
 import asyncio
 
 import uvicorn
@@ -41,13 +41,14 @@ class App(FastAPI):
         # shutdown 不能正常关闭？🤔
         await self.server.shutdown()
         # 强制退出
-        exit()
+        sys.exit()
         # 摆烂了，能退出就行👍
 
     async def shutdown(self, req: Request, key: str):
         if req.client.host != '127.0.0.1' or key != config.key:
             raise HTTPException(status_code=403)
-        os.system('RESTART > RESTART')
+        with open('RESTART', mode='wb') as f:
+            f.write(b'RESTART')
         asyncio.create_task(self.stop())
         return {'code': 200}
 
