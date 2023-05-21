@@ -39,7 +39,7 @@ class App(FastAPI):
 
     async def stop(self):
         # shutdown 不能正常关闭？🤔
-        await self.server.shutdown()
+        # await self.server.shutdown() 太怪了，不看
         # 强制退出
         sys.exit()
         # 摆烂了，能退出就行👍
