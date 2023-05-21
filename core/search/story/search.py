@@ -4,9 +4,11 @@ from pydantic import BaseModel
 
 from .data import *
 
+c1 = re.compile(r'\s')
+
 
 def search_text(*text: str) -> list[set[str]]:
-    return [text_index.get(i, set()) for i in set(text)]
+    return [text_index.get(i, set()) for i in set(c1.sub('', ' '.join(text)))]
 
 
 def search_char(chars: list[str]) -> set[str]:
