@@ -41,7 +41,7 @@ class App(FastAPI):
         # shutdown 不能正常关闭？🤔
         await self.server.shutdown()
         # 强制退出
-        raise KeyboardInterrupt
+        exit()
         # 摆烂了，能退出就行👍
 
     async def shutdown(self, req: Request, key: str):
