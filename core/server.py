@@ -1,4 +1,4 @@
-import sys
+import os
 import asyncio
 
 import uvicorn
@@ -41,7 +41,7 @@ class App(FastAPI):
         # shutdown 不能正常关闭？🤔
         # await self.server.shutdown() 太怪了，不看
         # 强制退出
-        sys.exit()
+        os._exit(36888)
         # 摆烂了，能退出就行👍
 
     async def shutdown(self, req: Request, key: str):
