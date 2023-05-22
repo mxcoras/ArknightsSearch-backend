@@ -44,7 +44,7 @@ ExtraData = TextData | CharData
 
 
 class Extra:
-    text_regex = r'(?:(.*)\n)?(.*)(%s)(.*)(?:\n(.(?!%s)*)$)?'
+    text_regex = r'(?:(.*)\n)?(.*)(%s)(.*)(?:\n((?:.(?!%s))*)$)?'
     char_regex = r'^%s:.*'
 
     # TODO 异名id提取 `“焰尾”索娜`
