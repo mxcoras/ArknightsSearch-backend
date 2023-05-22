@@ -54,7 +54,7 @@ class Extra:
     def __init__(self, params: StorySearchParamGroup):
         self.params: StorySearchParamGroup = params
         self.text_params: list[str] = [i.param for i in params if i.type == 'text']
-        self.text_regexes = [(i, re.compile(self.text_regex % (i, i))) for i in self.text_params]
+        self.text_regexes = [(i, re.compile(self.text_regex % (i, i), flags=re.MULTILINE)) for i in self.text_params]
         self.char_regexes = [(i.raw, re.compile(self.char_regex % i.raw, flags=re.MULTILINE)) for i in self.params if
                              i.type == 'char']
 
