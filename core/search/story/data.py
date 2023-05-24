@@ -4,7 +4,9 @@ __all__ = [
     'zone_name',
     'text_index',
     'char_index',
-    'zone_index'
+    'zone_index',
+    'char_id2name',
+    'char_name2id'
 ]
 
 import os
@@ -37,3 +39,5 @@ zone_name: dict[str, dict[support_language, str]] = json.load(get_path('zone_nam
 text_index: dict[str, set[str]] = to_set(json.load(get_path('text_index')))
 char_index: dict[str, set[str]] = to_set(json.load(get_path('char_index')))
 zone_index: dict[str, set[str]] = to_set(json.load(get_path('zone_index')))
+char_id2name: dict[str, set[str]] = to_set(json.load(get_path('char_id2name')))
+char_name2id: dict[str, set[str]] = to_set(json.load(get_path('char_name2id')))

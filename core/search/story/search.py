@@ -11,8 +11,8 @@ def search_text(*text: str) -> list[set[str]]:
     return [text_index.get(i, set()) for i in set(c1.sub('', ' '.join(text)))]
 
 
-def search_char(chars: list[str]) -> set[str]:
-    result = [char_index.get(i, set()) for i in chars]
+def search_char(char: str) -> set[str]:
+    result = [char_index.get(i, set()) for i in char_name2id[char]]
     if len(result) > 1:
         result = result[0].union(*result[1:])
     elif result:
@@ -34,18 +34,12 @@ SearchMethod = {
 
 
 class StorySearchParam(BaseModel):
-    type: Literal['text', 'zone']
+    type: Literal['text', 'zone', 'char']
     param: str
     raw: str = None
 
 
-class StorySearchMultipleParam(BaseModel):
-    type: Literal['char']
-    param: list[str]
-    raw: str = None
-
-
-StorySearchParamGroup = list[StorySearchParam | StorySearchMultipleParam]
+StorySearchParamGroup = list[StorySearchParam]
 
 
 def search(params: StorySearchParamGroup) -> set[str]:
