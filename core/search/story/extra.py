@@ -2,9 +2,9 @@ __all__ = ['Extra', 'ExtraData']
 
 import re
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Callable
 
-from .search import StorySearchParamGroup
+from .search import StorySearchParamGroup, StorySearchParam
 from .data import *
 
 
@@ -39,6 +39,26 @@ class CharData(BaseModel):
             self.__init__(data=match, has_more=False, raw=raw)
         return self
 
+    @staticmethod
+    def get_handler(param: StorySearchParam) -> Callable[[str], 'CharData']:
+        char_possible_names = set()
+        # 该角色名对应的所有可能的名称
+        [[char_possible_names.add(name) for name in char_id2name[char_id]]
+         for char_id in char_name2id[param.param]]
+        regex = re.compile(r'^(?:%s):.*' % '|'.join(char_possible_names), flags=re.MULTILINE)
+
+        # TODO 真路人npc名称查找问题
+
+        def handler(text: str) -> CharData:
+            """
+            CharData handler
+            :param text:故事文本
+            :return: CharData
+            """
+            return CharData.get(regex.findall(text), param.param)
+
+        return handler
+
 
 ExtraData = TextData | CharData
 
@@ -55,11 +75,10 @@ class Extra:
         self.params: StorySearchParamGroup = params
         self.text_params: list[str] = [i.param for i in params if i.type == 'text']
         self.text_regexes = [(i, re.compile(self.text_regex % (i, i), flags=re.MULTILINE)) for i in self.text_params]
-        self.char_regexes = [(i.param, re.compile(self.char_regex % i.param, flags=re.MULTILINE)) for i in self.params if
-                             i.type == 'char']
+        self.char_handlers = [CharData.get_handler(i) for i in self.params if i.type == 'char']
 
     def get(self, story_id: str) -> list[ExtraData]:
         text = text_data['zh_CN'][story_id]
         match = [TextData.get(r[1].findall(text), r[0]) for r in self.text_regexes] \
-                + [CharData.get(r[1].findall(text), r[0]) for r in self.char_regexes]
+                + [handler(text) for handler in self.char_handlers]
         return match
