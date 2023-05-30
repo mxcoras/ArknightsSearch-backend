@@ -98,16 +98,7 @@ class CharData(BaseModel):
     raw: str
 
     @classmethod
-    def get(cls, match: list[str], raw: str) -> 'CharData':
-        self = cls.__new__(cls)
-        if len(match) > 5:
-            self.__init__(data=match[:5], has_more=True, raw=raw)
-        else:
-            self.__init__(data=match, has_more=False, raw=raw)
-        return self
-
-    @staticmethod
-    def get_handler(param: StorySearchParam) -> Callable[[str], 'CharData']:
+    def get_handler(cls, param: StorySearchParam) -> Callable[[str], 'CharData']:
         char_possible_names = set()
         # 该角色名对应的所有可能的名称
         [[char_possible_names.add(name) for name in char_id2name[char_id]]
@@ -122,7 +113,14 @@ class CharData(BaseModel):
             :param text:故事文本
             :return: CharData
             """
-            return CharData.get(regex.findall(text), param.param)
+            res = regex.findall(text)
+            self = cls.__new__(cls)
+            if len(res) > 5:
+                self.__init__(data=res[:5], has_more=True, raw=param.param)
+            else:
+                self.__init__(data=res, has_more=False, raw=param.param)
+
+            return self
 
         return handler
 
