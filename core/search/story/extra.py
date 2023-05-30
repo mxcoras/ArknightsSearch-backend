@@ -15,21 +15,78 @@ class TextData(BaseModel):
     raw: str
 
     @classmethod
-    def get(cls, match: list[list[str]], raw: str) -> 'TextData':
-        self = cls.__new__(cls)
-        if len(match) > 5:
-            self.__init__(data=match[:5], raw=raw, has_more=True)
-        else:
-            self.__init__(data=match, raw=raw, has_more=False)
-        return self
-
-    @staticmethod
-    def get_handler(param: StorySearchParam) -> Callable[[str], 'TextData']:
-        pattern = re.escape(param.param)
-        regex = re.compile(r'(?:(.*)\n)?(.*)(%s)(.*)(?:\n((?:.(?!%s))*)$)?' % (pattern, pattern), flags=re.MULTILINE)
+    def get_handler(cls, param: StorySearchParam) -> Callable[[str], 'TextData']:
+        target = param.param
+        # 结果组
+        base_result = [target if i == 2 else '' for i in range(5)]
 
         def handler(text: str) -> TextData:
-            return TextData.get(regex.findall(text), param.param)
+            result_group = []
+            # 已处理的文本index
+            forward_index = 0
+            while len(result_group) < 5:
+                # 目标index
+                target_index = text.find(target, forward_index)
+                target_forward_index = target_index + len(target)
+                if target_index == -1:
+                    # 无目标，取消查找
+                    break
+
+                # copy基础结果
+                result = base_result.copy()
+
+                # result[3] & check 寻找最近的下一个换行符
+                n2_index = text.find('\n', target_forward_index)
+                if n2_index == -1:
+                    # 文本末尾
+                    result[3] = text[target_forward_index:]
+                else:
+                    result[3] = text[target_forward_index: n2_index]
+
+                if result[3].find(': ') != -1:
+                    # 排除角色名
+                    forward_index = n2_index
+                    continue
+
+                # result[4]
+                if n2_index != -1:
+                    n2_index += 1
+                    n3_index = text.find('\n', n2_index)
+                    if n3_index == -1:
+                        result[4] = text[n2_index:]
+                    else:
+                        result[4] = text[n2_index:n3_index]
+
+                    if result[4].find(target) > result[4].find(': '):
+                        # 排除下一行有target
+                        result[4] = ''
+
+                # result[1]
+                n1_index = text.rfind('\n', 0, target_index)
+                if n1_index == -1:
+                    result[1] = text[:target_index]
+                else:
+                    result[1] = text[n1_index + 1:target_index]
+
+                # result[0]
+                if n1_index != -1:
+                    n0_index = text.rfind('\n', 0, n1_index)
+                    if n0_index == -1:
+                        result[0] = text[:n1_index]
+                    else:
+                        result[0] = text[n0_index + 1: n1_index]
+
+                    if result[0].find(target) > result[0].find(': '):
+                        # 排除上一行有target
+                        result[0] = ''
+
+                forward_index = target_forward_index
+                result_group.append(result)
+
+            self = cls.__new__(cls)
+            self.__init__(data=result_group, raw=target, has_more=len(result_group) > 4)
+
+            return self
 
         return handler
 

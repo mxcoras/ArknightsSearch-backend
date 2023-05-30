@@ -57,8 +57,14 @@ def search(params: StorySearchParamGroup) -> set[str]:
         for story in result.copy():
             text = text_data['zh_CN'][story]
             for t in text_group:
-                if t not in text:
-                    result.remove(story)
-                    break
+                i1 = text.find(t)
+                if i1 != -1:
+                    i2 = text.find('\n', i1 + len(t))
+                    i3 = text.find(': ', i1 + len(t), i2)
+                    if i3 == -1:
+                        # 非角色名称
+                        continue
+                result.remove(story)
+                break
 
     return result
