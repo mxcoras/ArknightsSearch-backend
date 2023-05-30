@@ -23,6 +23,16 @@ class TextData(BaseModel):
             self.__init__(data=match, raw=raw, has_more=False)
         return self
 
+    @staticmethod
+    def get_handler(param: StorySearchParam) -> Callable[[str], 'TextData']:
+        pattern = re.escape(param.param)
+        regex = re.compile(r'(?:(.*)\n)?(.*)(%s)(.*)(?:\n((?:.(?!%s))*)$)?' % (pattern, pattern), flags=re.MULTILINE)
+
+        def handler(text: str) -> TextData:
+            return TextData.get(regex.findall(text), param.param)
+
+        return handler
+
 
 class CharData(BaseModel):
     type: Literal['char'] = 'char'
@@ -45,7 +55,7 @@ class CharData(BaseModel):
         # 该角色名对应的所有可能的名称
         [[char_possible_names.add(name) for name in char_id2name[char_id]]
          for char_id in char_name2id[param.param]]
-        regex = re.compile(r'^(?:%s):.*' % '|'.join(char_possible_names), flags=re.MULTILINE)
+        regex = re.compile(r'^(?:%s):.*' % '|'.join(re.escape(i) for i in char_possible_names), flags=re.MULTILINE)
 
         # TODO 真路人npc名称查找问题
 
@@ -64,21 +74,15 @@ ExtraData = TextData | CharData
 
 
 class Extra:
-    text_regex = r'(?:(.*)\n)?(.*)(%s)(.*)(?:\n((?:.(?!%s))*)$)?'
-    char_regex = r'^%s:.*'
-
-    # TODO 异名id提取 `“焰尾”索娜`
-
     """提取数据，提供快速搜索"""
 
     def __init__(self, params: StorySearchParamGroup):
         self.params: StorySearchParamGroup = params
-        self.text_params: list[str] = [i.param for i in params if i.type == 'text']
-        self.text_regexes = [(i, re.compile(self.text_regex % (i, i), flags=re.MULTILINE)) for i in self.text_params]
+        self.text_handler = [TextData.get_handler(i) for i in params if i.type == 'text']
         self.char_handlers = [CharData.get_handler(i) for i in self.params if i.type == 'char']
 
     def get(self, story_id: str) -> list[ExtraData]:
         text = text_data['zh_CN'][story_id]
-        match = [TextData.get(r[1].findall(text), r[0]) for r in self.text_regexes] \
+        match = [handler(text) for handler in self.text_handler] \
                 + [handler(text) for handler in self.char_handlers]
         return match
