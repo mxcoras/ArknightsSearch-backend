@@ -41,6 +41,8 @@ class StorySearchParam(BaseModel):
 
 StorySearchParamGroup = list[StorySearchParam]
 
+secondary_text_check = re.compile(r'斯卡蒂(?!: )(?:.(?!: ))*$', flags=re.MULTILINE)
+
 
 def search(params: StorySearchParamGroup) -> set[str]:
     text_group = [p.param for p in params if p.type == 'text']
@@ -64,6 +66,8 @@ def search(params: StorySearchParamGroup) -> set[str]:
                     if i3 == -1:
                         # 非角色名称
                         continue
+                if secondary_text_check.search(text):
+                    continue
                 result.remove(story)
                 break
 
