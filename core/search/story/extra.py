@@ -24,6 +24,8 @@ class TextData(BaseModel):
             result_group = []
             # 已处理的文本index
             forward_index = 0
+            # 已添加的文本index
+            added_index = 0
             while len(result_group) < 5:
                 # 目标index
                 target_index = text.find(target, forward_index)
@@ -48,19 +50,6 @@ class TextData(BaseModel):
                     forward_index = n2_index
                     continue
 
-                # result[4]
-                if n2_index != -1:
-                    n2_index += 1
-                    n3_index = text.find('\n', n2_index)
-                    if n3_index == -1:
-                        result[4] = text[n2_index:]
-                    else:
-                        result[4] = text[n2_index:n3_index]
-
-                    if result[4].find(target) > result[4].find(': '):
-                        # 排除下一行有target
-                        result[4] = ''
-
                 # result[1]
                 n1_index = text.rfind('\n', 0, target_index)
                 if n1_index == -1:
@@ -71,14 +60,27 @@ class TextData(BaseModel):
                 # result[0]
                 if n1_index != -1:
                     n0_index = text.rfind('\n', 0, n1_index)
-                    if n0_index == -1:
-                        result[0] = text[:n1_index]
-                    else:
-                        result[0] = text[n0_index + 1: n1_index]
+                    if n0_index >= added_index:
+                        if n0_index == -1:
+                            result[0] = text[:n1_index]
+                        else:
+                            result[0] = text[n0_index + 1: n1_index]
 
-                    if result[0].find(target) > result[0].find(': '):
-                        # 排除上一行有target
-                        result[0] = ''
+                # result[4]
+                if n2_index != -1:
+                    n2_index += 1
+                    n3_index = text.find('\n', n2_index)
+                    if n3_index == -1:
+                        result[4] = text[n2_index:]
+                    else:
+                        result[4] = text[n2_index:n3_index]
+
+                    if result[4].find(target) > result[4].find(': '):
+                        added_index = n2_index
+                        # 排除下一行有target
+                        result[4] = ''
+                    else:
+                        added_index = n3_index
 
                 forward_index = target_forward_index
                 result_group.append(result)
