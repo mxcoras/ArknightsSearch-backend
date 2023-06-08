@@ -41,7 +41,7 @@ class StorySearchParam(BaseModel):
 
 StorySearchParamGroup = list[StorySearchParam]
 
-secondary_text_check = re.compile(r'斯卡蒂(?!: )(?:.(?!: ))*$', flags=re.MULTILINE)
+secondary_text_pattern = r'%s(?!: )(?:.(?!: ))*$'
 
 
 def search(params: StorySearchParamGroup) -> set[str]:
@@ -63,11 +63,9 @@ def search(params: StorySearchParamGroup) -> set[str]:
                 if i1 != -1:
                     i2 = text.find('\n', i1 + len(t))
                     i3 = text.find(': ', i1 + len(t), i2)
-                    if i3 == -1:
+                    if i3 == -1 or re.search(secondary_text_pattern % t, text, flags=re.MULTILINE):
                         # 非角色名称
                         continue
-                if secondary_text_check.search(text):
-                    continue
                 result.remove(story)
                 break
 
