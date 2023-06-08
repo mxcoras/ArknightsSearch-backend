@@ -108,6 +108,10 @@ class CharData(BaseModel):
         regex = re.compile(r'^(?:%s):.*' % '|'.join(re.escape(i) for i in char_possible_names), flags=re.MULTILINE)
 
         # TODO 真路人npc名称查找问题
+        # TODO 异名查找仍需完善
+        """
+        https://search.arkfans.top/search?params=[{%22type%22:%22char%22,%22value%22:%22%E6%89%AD%E6%9B%B2%E7%9A%84%E6%80%AA%E7%89%A9%22}]
+        """
 
         def handler(text: str) -> CharData:
             """
