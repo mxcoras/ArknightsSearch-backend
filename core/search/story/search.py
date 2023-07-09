@@ -12,7 +12,7 @@ def search_text(*text: str) -> list[set[str]]:
 
 
 def search_char(char: str) -> set[str]:
-    result = [char_index.get(i, set()) for i in char_name2id[char]]
+    result = [char_id2story.get(i, set()) for i in char_name2id[char]] + [char_name2story.get(char, set())]
     if len(result) > 1:
         result = result[0].union(*result[1:])
     elif result:
