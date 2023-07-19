@@ -103,8 +103,8 @@ class CharData(BaseModel):
     def get_handler(cls, param: StorySearchParam) -> Callable[[str], 'CharData']:
         char_possible_names = set()
         # 该角色名对应的所有可能的名称
-        [[char_possible_names.add(name) for name in char_id2name[char_id]]
-         for char_id in char_name2id[param.param]]
+        [[char_possible_names.add(name) for name in char_id2name(char_id)]
+         for char_id in char_name2id(param.param)]
         regex = re.compile(r'^(?:%s):.*' % '|'.join(re.escape(i) for i in char_possible_names), flags=re.MULTILINE)
 
         # TODO 真路人npc名称查找问题
