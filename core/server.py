@@ -2,10 +2,12 @@ import os
 import asyncio
 
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, HTTPException
 
 from .config import config
+from .util import TimeRecorder
 from .rate_limiter import LimiterManager
 
 
@@ -14,6 +16,7 @@ class App(FastAPI):
     loop: asyncio.AbstractEventLoop | None
 
     async def run(self):
+        self.middleware('http')(self.timeout_handler)
         self.add_middleware(
             CORSMiddleware,
             allow_origins=['*'],
@@ -53,6 +56,17 @@ class App(FastAPI):
             f.write(b'RESTART')
         asyncio.create_task(self.stop())
         return {'code': 200}
+
+    @staticmethod
+    async def timeout_handler(request: Request, call_next):
+        try:
+            with TimeRecorder() as t:
+                response = await asyncio.wait_for(call_next(request), 0.1)
+                response.headers["X-Process-Time"] = str(t.diff)
+                return response
+        except asyncio.TimeoutError:
+            return HTMLResponse(status_code=408, content='{"detail":"Timeout"}',
+                                headers={'Content-Type': 'application/json'})
 
 
 app = App()
