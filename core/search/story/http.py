@@ -30,12 +30,12 @@ class Request(BaseModel):
 
 
 def format_result(result: list[str], lang: support_language, extra: Extra):
-    return [{
-        'name': story_data[i]['name'][lang],
-        'zone': zone_name[story_data[i]['zone']][lang],
-        'type': story_data[i]['type'],
-        'data': extra.get(i)
-    } for i in result]
+    return [Result(
+        name=story_data[i]['name'][lang],
+        zone=zone_name[story_data[i]['zone']][lang],
+        type=story_data[i]['type'],
+        data=extra.get(i)
+    ) for i in result]
 
 
 @app.post('/story')
