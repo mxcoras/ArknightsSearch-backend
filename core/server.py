@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import config
+from .rate_limiter import LimiterManager
 
 
 class App(FastAPI):
@@ -35,6 +36,7 @@ class App(FastAPI):
             loop = asyncio.new_event_loop()
 
         self.loop = loop
+        loop.create_task(LimiterManager.scavenger())
         loop.run_until_complete(self.run())
 
     async def stop(self):

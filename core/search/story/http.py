@@ -4,6 +4,7 @@ from fastapi import Query
 
 from core.server import app
 from core.constant import support_language
+from core.rate_limiter import Limiter
 from .search import search, StorySearchParamGroup
 from .data import *
 from .extra import *
@@ -39,7 +40,7 @@ def format_result(result: list[str], lang: support_language, extra: Extra):
 
 
 @app.post('/story')
-def search_story(req: Request) -> Response:
+def search_story(req: Request, limiter=Limiter.depends(1, 1)) -> Response:
     # TODO 适配结果
     result = list(sorted(search(req.params)))
     total = len(result)
