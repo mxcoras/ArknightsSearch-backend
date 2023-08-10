@@ -40,7 +40,7 @@ def format_result(result: list[str], lang: support_language, extra: Extra):
 
 
 @app.post('/story')
-def search_story(req: Request, limiter=Limiter.depends(1, 1)) -> Response:
+def search_story(req: Request, limiter=Limiter.depends(5, 10)) -> Response:
     # TODO 适配结果
     result = list(sorted(search(req.params)))
     total = len(result)
