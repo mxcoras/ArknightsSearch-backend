@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from fastapi import Query
 
 from core.server import app
+from core.config import config
 from core.constant import support_language
 from core.rate_limiter import Limiter
 from .search import search, StorySearchParamGroup
@@ -40,8 +41,8 @@ def format_result(result: list[str], lang: support_language, extra: Extra):
 
 
 @app.post('/story')
-def search_story(req: Request, limiter=Limiter.depends(5, 10)) -> Response:
-    # TODO 适配结果
+def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['story'].param)) -> Response:
+    # search.arkfans.top 采用 10q/5s 限频
     result = list(sorted(search(req.params)))
     total = len(result)
     has_more = False

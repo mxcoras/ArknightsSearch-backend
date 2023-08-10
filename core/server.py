@@ -61,7 +61,7 @@ class App(FastAPI):
     async def timeout_handler(request: Request, call_next):
         try:
             with TimeRecorder() as t:
-                response = await asyncio.wait_for(call_next(request), 0.1)
+                response = await asyncio.wait_for(call_next(request), config.limit.timeout)
                 response.headers["X-Process-Time"] = str(t.diff)
                 return response
         except asyncio.TimeoutError:
