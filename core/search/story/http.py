@@ -1,6 +1,4 @@
-import re
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from fastapi import Query
 
@@ -25,7 +23,7 @@ class Response(BaseModel):
 
 
 class Request(BaseModel):
-    params: StorySearchParamGroup
+    params: StorySearchParamGroup = Field(min_items=1, max_items=20)
     lang: support_language = 'zh_CN'
     limit: int = Query(ge=1, le=100, default=20)
     offset: int = Query(ge=0, default=0)
