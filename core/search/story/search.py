@@ -23,7 +23,7 @@ def search_char(char: str) -> set[str]:
     return result
 
 
-def search_zone(zone: str) -> list[set[str]]:
+def search_zone(zone: str) -> set[str]:
     return zone_index.get(zone, set())
 
 
