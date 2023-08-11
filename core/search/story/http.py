@@ -12,6 +12,7 @@ from .extra import *
 
 
 class Result(BaseModel):
+    id: str
     name: str
     zone: str
     type: str
@@ -33,6 +34,7 @@ class Request(BaseModel):
 
 def format_result(result: list[str], lang: support_language, extra: Extra):
     return [Result(
+        id=story_data[i]['id'],
         name=story_data[i]['name'][lang],
         zone=zone_name[story_data[i]['zone']][lang],
         type=story_data[i]['type'],
