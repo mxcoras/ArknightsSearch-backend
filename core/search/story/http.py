@@ -42,7 +42,7 @@ def format_result(result: list[str], lang: support_language, extra: Extra):
     ) for i in result]
 
 
-@app.post('/story')
+@app.post('/story', tags=['Story'], description='搜索剧情')
 def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['story'].param)) -> Response:
     # search.arkfans.top 采用 10q/5s 限频
     result = list(sorted(search(req.params)))
@@ -64,7 +64,7 @@ def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['stor
     )
 
 
-@app.get('/story/read')
+@app.get('/story/read', tags=['Story'], description='获取剧情文本')
 def read_story(
         id: str,
         lang: support_language,
@@ -87,7 +87,7 @@ class MultipleMemoryRequest(BaseModel):
     id: str
 
 
-@app.post('/story/multiple_memory')
+@app.post('/story/multiple_memory', tags=['Story'], description='获取干员密录是否有多个，用于转跳PRTS')
 def read_story(
         req: MultipleMemoryRequest,
         limiter=Limiter.depends(**config.limit.rate['story_multiple_memory'].param)
