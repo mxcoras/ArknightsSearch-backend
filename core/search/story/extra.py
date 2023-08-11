@@ -154,7 +154,11 @@ class RegexData(BaseModel):
 
     @classmethod
     def format_res(cls, group: list[str | None]):
-        return group[:3] + group[-2:]
+        # TODO 灵活化限制
+        if len(group[2]) > 50:
+            return group[:2] + (group[2][:25] + f'...[{len(group[2]) - 50}]...' + group[2][-25:],) + group[-2:]
+        else:
+            return group[:3] + group[-2:]
 
 
 ExtraData = TextData | CharData | RegexData
