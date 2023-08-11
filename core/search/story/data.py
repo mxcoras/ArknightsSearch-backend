@@ -7,7 +7,9 @@ __all__ = [
     'char_name2story',
     'zone_index',
     'char_id2name',
-    'char_name2id'
+    'char_name2id',
+    'story_id2story_seq',
+    'multiple_memory'
 ]
 
 import os
@@ -49,6 +51,8 @@ zone_index: dict[str, set[str]] = to_set(json.load(get_path('zone_index')))
 seq_data: list[SeqData] = [SeqData(id=set(i[0]), name=set(i[1])) for i in json.load(get_path('seq_data'))]
 char_id2seq: dict[str, set[int]] = {}
 char_name2seq: dict[str, set[int]] = {}
+story_id2story_seq: dict[str, str] = {}
+multiple_memory: set[str] = set()
 
 
 def init_seq_data():
@@ -66,6 +70,23 @@ def init_seq_data():
 
 
 init_seq_data()
+
+
+def init_story_id2story_seq_data():
+    for s, data in story_data.items():
+        story_id2story_seq[data['id']] = s
+
+
+init_story_id2story_seq_data()
+
+
+def init_multiple_memory_data():
+    for s, data in story_data.items():
+        if data['type'] == 'Memory' and data['id'].split('_')[-1] != '1':
+            multiple_memory.add('_'.join(data['id'].split('_')[:-1] + ['1']))
+
+
+init_multiple_memory_data()
 
 
 def char_id2name(char_id: str) -> set[str]:

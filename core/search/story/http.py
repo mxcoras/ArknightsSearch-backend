@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from fastapi import Query
+from fastapi import Query, HTTPException
 
 from core.server import app
 from core.config import config
@@ -62,3 +62,35 @@ def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['stor
         has_more=has_more,
         data=format_result(result, req.lang, Extra(req.params))
     )
+
+
+@app.get('/story/read')
+def read_story(
+        id: str,
+        lang: support_language,
+        limiter=Limiter.depends(**config.limit.rate['read_story'].param)
+) -> tuple[str, str]:
+    if (seq := story_id2story_seq.get(id)) and (text := text_data[lang].get(seq)):
+        return story_data[seq]["name"][lang], text
+
+    raise HTTPException(status_code=404)
+
+
+class Request(BaseModel):
+    params: StorySearchParamGroup = Field(min_items=1, max_items=20)
+    lang: support_language = 'zh_CN'
+    limit: int = Query(ge=1, le=100, default=20)
+    offset: int = Query(ge=0, default=0)
+
+
+class MultipleMemoryRequest(BaseModel):
+    id: str
+
+
+@app.post('/story/multiple_memory')
+def read_story(
+        req: MultipleMemoryRequest,
+        limiter=Limiter.depends(**config.limit.rate['story_multiple_memory'].param)
+) -> bool:
+    # 支持prts转跳 .e.g 安洁莉娜/干员密录/1-1 & 梅尔/干员密录/1
+    return req.id in multiple_memory
