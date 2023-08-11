@@ -32,7 +32,7 @@ class RateLimit:
 class Limit:
     def __init__(self, data: dict):
         data = data or {}
-        self.timeout: float = data.get('timeout', 0.1)
+        self.timeout: float = data.get('timeout', 0.5)
         self.rate: dict[str, RateLimit] = {k: RateLimit(v) for k, v in data.get('rate', {}).items()}
 
 
