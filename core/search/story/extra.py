@@ -86,6 +86,7 @@ class TextData(BaseModel):
                 result_group.append(result)
 
             self = cls.__new__(cls)
+            # TODO has_more优化判断
             self.__init__(data=result_group, raw=target, has_more=len(result_group) > 4)
 
             return self
@@ -127,19 +128,51 @@ class CharData(BaseModel):
         return handler
 
 
-ExtraData = TextData | CharData
+class RegexData(BaseModel):
+    type: Literal['regex'] = 'regex'
+    data: list[list[str | None]]
+    has_more: bool
+    raw: str
+
+    @classmethod
+    def get_handler(cls, param: StorySearchParam) -> Callable[[str], 'RegexData']:
+        # TODO 弃用纯正则，优化效率
+
+        regex = re.compile(r'(?:(.+)\n)?^(.*)(%s)(.*)$(?:\n(.+))' % param.param, flags=re.M)
+
+        def handler(text: str) -> RegexData:
+            res = regex.findall(text)
+            self = cls.__new__(cls)
+            if len(res) > 5:
+                self.__init__(data=[self.format_res(i) for i in res[:5]], has_more=True, raw=param.param)
+            else:
+                self.__init__(data=[self.format_res(i) for i in res], has_more=False, raw=param.param)
+
+            return self
+
+        return handler
+
+    @classmethod
+    def format_res(cls, group: list[str | None]):
+        return group[:3] + group[-2:]
+
+
+ExtraData = TextData | CharData | RegexData
 
 
 class Extra:
     """提取数据，提供快速搜索"""
+    handler_dict: dict[str, Callable[[StorySearchParam], Callable[[str], 'RegexData']]] = {
+        'text': TextData.get_handler,
+        'char': CharData.get_handler,
+        'regex': RegexData.get_handler
+    }
 
     def __init__(self, params: StorySearchParamGroup):
         self.params: StorySearchParamGroup = params
-        self.text_handler = [TextData.get_handler(i) for i in params if i.type == 'text']
-        self.char_handlers = [CharData.get_handler(i) for i in self.params if i.type == 'char']
+        self.handlers = [self.handler_dict[i.type](i) for i in params if i.type in self.handler_dict]
 
     def get(self, story_id: str) -> list[ExtraData]:
         text = text_data['zh_CN'][story_id]
-        match = [handler(text) for handler in self.text_handler] \
-                + [handler(text) for handler in self.char_handlers]
+        match = [handler(text) for handler in self.handlers]
         return match

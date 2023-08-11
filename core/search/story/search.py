@@ -1,17 +1,20 @@
 import re
-from typing import Literal
+from typing import Literal, Callable
 from pydantic import BaseModel
 
+from fastapi import HTTPException
+
 from .data import *
+from core.constant import support_language, default_lang
 
 c1 = re.compile(r'\s')
 
 
-def search_text(*text: str) -> list[set[str]]:
+def search_text(text: list[str], lang: support_language = default_lang) -> list[set[str]]:
     return [text_index.get(i, set()) for i in set(c1.sub('', ' '.join(text)))]
 
 
-def search_char(char: str) -> set[str]:
+def search_char(char: str, lang: support_language = default_lang) -> set[str]:
     result = [char_id2story.get(i, set()) for i in char_name2id(char)] + [char_name2story.get(char, set())]
     if len(result) > 1:
         result = result[0].union(*result[1:])
@@ -23,18 +26,27 @@ def search_char(char: str) -> set[str]:
     return result
 
 
-def search_zone(zone: str) -> set[str]:
+def search_zone(zone: str, lang: support_language = default_lang) -> set[str]:
     return zone_index.get(zone, set())
 
 
-SearchMethod = {
+def search_regex(regex: str, lang: support_language = default_lang) -> set[str]:
+    try:
+        reg = re.compile(regex, flags=re.M)
+    except re.error as e:
+        raise HTTPException(440, detail=e.__str__())
+    return set(k for k, text in text_data[lang].items() if reg.search(text))
+
+
+SearchMethod: dict[str, Callable[[str, support_language], set[str]]] = {
     'char': search_char,
-    'zone': search_zone
+    'zone': search_zone,
+    'regex': search_regex
 }
 
 
 class StorySearchParam(BaseModel):
-    type: Literal['text', 'zone', 'char']
+    type: Literal['text', 'zone', 'char', 'regex']
     param: str
     raw: str = None
 
@@ -46,7 +58,7 @@ secondary_text_pattern = r'%s(?!: )(?:.(?!: ))*$'
 
 def search(params: StorySearchParamGroup) -> set[str]:
     text_group = [p.param for p in params if p.type == 'text']
-    result = search_text(*text_group) + [SearchMethod[p.type](p.param) for p in params if p.type != 'text']
+    result = search_text(text_group) + [SearchMethod[p.type](p.param) for p in params if p.type != 'text']
 
     if len(result) > 1:
         result = result[0].intersection(*result[1:])

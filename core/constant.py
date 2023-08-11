@@ -7,3 +7,4 @@ cwd = os.getcwd()
 data_path = os.path.join(cwd, 'data')
 
 support_language = Literal['zh_CN']
+default_lang = 'zh_CN'
