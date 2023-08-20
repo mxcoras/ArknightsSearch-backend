@@ -1,4 +1,6 @@
+from enum import IntEnum
 from pydantic import BaseModel, Field
+from typing import Any
 
 from fastapi import Query, HTTPException
 
@@ -11,7 +13,26 @@ from .data import *
 from .extra import *
 
 
-class Result(BaseModel):
+class StoryRequire(IntEnum):
+    ID = 1 << 0
+    TYPE = 1 << 1
+    NAME = 1 << 2
+    CODE = 1 << 3
+    LONG_NAME = 1 << 4
+    SHORT_NAME = 1 << 5
+    ZONE_ID = 1 << 6
+    ZONE_NAME = 1 << 7
+    EXTRA = 1 << 8
+
+    BASIC = ID | TYPE | ZONE_NAME | EXTRA
+
+    PC = BASIC | LONG_NAME
+    PHONE = BASIC | SHORT_NAME
+
+    ALL = 1 << 9 - 1
+
+
+class StoryResult(BaseModel):
     id: str
     name: str
     zone: str
@@ -19,31 +40,48 @@ class Result(BaseModel):
     data: list[ExtraData]
 
 
-class Response(BaseModel):
+class StoryResponse(BaseModel):
     total: int
     has_more: bool
-    data: list[Result]
+    data: list[Any | list[Any]]
 
 
-class Request(BaseModel):
+class StoryRequest(BaseModel):
     params: StorySearchParamGroup = Field(min_items=1, max_items=20)
     lang: support_language = 'zh_CN'
     limit: int = Query(ge=1, le=100, default=20)
     offset: int = Query(ge=0, default=0)
+    require: int = StoryRequire.PC
 
 
-def format_result(result: list[str], lang: support_language, extra: Extra):
-    return [Result(
-        id=story_data[i]['id'],
-        name=story_data[i]['name'][lang],
-        zone=zone_name[story_data[i]['zone']][lang],
-        type=story_data[i]['type'],
-        data=extra.get(i)
-    ) for i in result]
+def format_result(story_seq: str, require: int, lang: support_language, /, extra: Extra = None) -> list[Any]:
+    result = []
+    data = story_data[story_seq]
+
+    if require & StoryRequire.ID:
+        result.append(data.id)
+    if require & StoryRequire.TYPE:
+        result.append(data.type)
+    if require & StoryRequire.NAME:
+        result.append(data.name[lang])
+    if require & StoryRequire.CODE:
+        result.append(data.code)
+    if require & StoryRequire.LONG_NAME:
+        result.append(data.long_name[lang])
+    if require & StoryRequire.SHORT_NAME:
+        result.append(data.short_name[lang])
+    if require & StoryRequire.ZONE_ID:
+        result.append(data.zone)
+    if require & StoryRequire.ZONE_NAME:
+        result.append(zone_name[data.zone][lang])
+    if require & StoryRequire.EXTRA:
+        result.append(extra.get(story_seq))
+
+    return result
 
 
 @app.post('/story', tags=['Story'], description='搜索剧情')
-def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['story'].param)) -> Response:
+def search_story(req: StoryRequest, limiter=Limiter.depends(**config.limit.rate['story'].param)) -> StoryResponse:
     # search.arkfans.top 采用 10q/5s 限频
     result = list(sorted(search(req.params)))
     total = len(result)
@@ -57,10 +95,18 @@ def search_story(req: Request, limiter=Limiter.depends(**config.limit.rate['stor
             result = result[:req.limit]
             has_more = True
 
-    return Response(
+    if req.require & StoryRequire.EXTRA:
+        result = [format_result(i, req.require, req.lang, extra=Extra(req.params)) for i in result]
+    else:
+        result = [format_result(i, req.require, req.lang) for i in result]
+
+    if result and len(result[0]) == 1:
+        result = [result[i][0] for i in range(len(result))]
+
+    return StoryResponse(
         total=total,
         has_more=has_more,
-        data=format_result(result, req.lang, Extra(req.params))
+        data=result
     )
 
 
@@ -71,7 +117,7 @@ def read_story(
         limiter=Limiter.depends(**config.limit.rate['read_story'].param)
 ) -> tuple[str, str]:
     if (seq := story_id2story_seq.get(id)) and (text := text_data[lang].get(seq)):
-        return story_data[seq]["name"][lang], text
+        return story_data[seq].name[lang], text
 
     raise HTTPException(status_code=404)
 
