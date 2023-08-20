@@ -49,7 +49,7 @@ class StoryData:
             if not self.name:
                 # level_act12side_tr01_end
                 names = {}
-                for lang in support_language:
+                for lang in support_language.__args__:
                     names[lang] = self.code
                 self.same_name(names)
                 return
