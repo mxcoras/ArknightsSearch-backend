@@ -1,16 +1,17 @@
 from enum import IntEnum
+from typing import Annotated, Any
+
+from fastapi import HTTPException, Query
 from pydantic import BaseModel, Field
-from typing import Any
 
-from fastapi import Query, HTTPException
-
-from core.server import app
 from core.config import config
 from core.constant import support_language
 from core.rate_limiter import Limiter
-from .search import search, StorySearchParamGroup
-from .data import *
-from .extra import *
+from core.server import app
+
+from .data import multiple_memory, story_data, story_id2story_seq, text_data, zone_name
+from .extra import Extra, ExtraData
+from .search import StorySearchParamGroup, search
 
 
 class StoryRequire(IntEnum):
@@ -47,14 +48,14 @@ class StoryResponse(BaseModel):
 
 
 class StoryRequest(BaseModel):
-    params: StorySearchParamGroup = Field(min_items=1, max_items=20)
-    lang: support_language = 'zh_CN'
+    params: Annotated[StorySearchParamGroup, Field(min_length=1, max_length=20)]
+    lang: support_language = "zh_CN"
     limit: int = Query(ge=1, le=100, default=20)
     offset: int = Query(ge=0, default=0)
     require: int = StoryRequire.PC
 
 
-def format_result(story_seq: str, require: int, lang: support_language, /, extra: Extra = None) -> list[Any]:
+def format_result(story_seq: str, require: int, lang: support_language, /, extra: Extra | None = None) -> list[Any]:
     result = []
     data = story_data[story_seq]
 
@@ -74,25 +75,25 @@ def format_result(story_seq: str, require: int, lang: support_language, /, extra
         result.append(data.zone)
     if require & StoryRequire.ZONE_NAME:
         result.append(zone_name[data.zone][lang])
-    if require & StoryRequire.EXTRA:
+    if require & StoryRequire.EXTRA and extra:
         result.append(extra.get(story_seq))
 
     return result
 
 
-@app.post('/story', tags=['Story'], description='搜索剧情')
-def search_story(req: StoryRequest, limiter=Limiter.depends(**config.limit.rate['story'].param)) -> StoryResponse:
+@app.post("/story", tags=["Story"], description="搜索剧情")
+def search_story(req: StoryRequest, limiter=Limiter.depends(**config.limit.rate["story"].param)) -> StoryResponse:
     # search.arkfans.top 采用 10q/5s 限频
-    result = list(sorted(search(req.params)))
+    result = sorted(search(req.params))
     total = len(result)
     has_more = False
 
     if req.offset > len(result):
         result = []
     else:
-        result = result[req.offset:]
+        result = result[req.offset :]
         if len(result) > req.limit:
-            result = result[:req.limit]
+            result = result[: req.limit]
             has_more = True
 
     if req.require & StoryRequire.EXTRA:
@@ -103,28 +104,22 @@ def search_story(req: StoryRequest, limiter=Limiter.depends(**config.limit.rate[
     if result and len(result[0]) == 1:
         result = [result[i][0] for i in range(len(result))]
 
-    return StoryResponse(
-        total=total,
-        has_more=has_more,
-        data=result
-    )
+    return StoryResponse(total=total, has_more=has_more, data=result)
 
 
-@app.get('/story/read', tags=['Story'], description='获取剧情文本')
+@app.get("/story/read", tags=["Story"], description="获取剧情文本")
 def read_story(
-        id: str,
-        lang: support_language,
-        limiter=Limiter.depends(**config.limit.rate['read_story'].param)
+    id_: str, lang: support_language, limiter=Limiter.depends(**config.limit.rate["read_story"].param)
 ) -> tuple[str, str]:
-    if (seq := story_id2story_seq.get(id)) and (text := text_data[lang].get(seq)):
+    if (seq := story_id2story_seq.get(id_)) and (text := text_data[lang].get(seq)):
         return story_data[seq].name[lang], text
 
     raise HTTPException(status_code=404)
 
 
 class Request(BaseModel):
-    params: StorySearchParamGroup = Field(min_items=1, max_items=20)
-    lang: support_language = 'zh_CN'
+    params: Annotated[StorySearchParamGroup, Field(min_length=1, max_length=20)]
+    lang: support_language = "zh_CN"
     limit: int = Query(ge=1, le=100, default=20)
     offset: int = Query(ge=0, default=0)
 
@@ -133,10 +128,9 @@ class MultipleMemoryRequest(BaseModel):
     id: str
 
 
-@app.post('/story/multiple_memory', tags=['Story'], description='获取干员密录是否有多个，用于转跳PRTS')
-def read_story(
-        req: MultipleMemoryRequest,
-        limiter=Limiter.depends(**config.limit.rate['story_multiple_memory'].param)
+@app.post("/story/multiple_memory", tags=["Story"], description="获取干员密录是否有多个，用于转跳PRTS")
+def read_story_multiple_memory(
+    req: MultipleMemoryRequest, limiter=Limiter.depends(**config.limit.rate["story_multiple_memory"].param)
 ) -> bool:
     # 支持prts转跳 .e.g 安洁莉娜/干员密录/1-1 & 梅尔/干员密录/1
     return req.id in multiple_memory

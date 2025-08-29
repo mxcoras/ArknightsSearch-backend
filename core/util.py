@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from timeit import default_timer
 
 import simdjson
@@ -7,12 +8,12 @@ import simdjson
 class Json:
     @staticmethod
     def dump(data, path: str):
-        with open(path, mode='wt', encoding='utf-8') as f:
+        with Path(path).open(mode="w", encoding="utf-8") as f:
             return simdjson.dump(data, f, ensure_ascii=False, indent=2)
 
     @staticmethod
     def load(path: str):
-        with open(path, mode='rt', encoding='utf-8') as f:
+        with Path(path).open(encoding="utf-8") as f:
             return simdjson.load(f)
 
 
@@ -75,7 +76,7 @@ class TimeRecorder:
 
     @property
     def string_format(self):
-        return '%.6gs' % self.diff
+        return f"{self.diff:.6g}s"
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass

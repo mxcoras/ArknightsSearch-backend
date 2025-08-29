@@ -1,18 +1,18 @@
 import asyncio
 from collections import deque
-from typing import Hashable, Callable
+from collections.abc import Callable, Hashable
 
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, HTTPException, Request
 
 from .util import Date
 
 
 class Limiter:
-    def __init__(self, interval: float, query: int, key: Callable[[Request], Hashable] = None):
+    def __init__(self, interval: float, query: int, key: Callable[[Request], Hashable] | None = None):
         self.interval: float = interval
         self.query: int = query
         self.queue_dict: dict[Hashable, deque] = {}
-        self.key: Callable[[Request], Hashable] = key if key else self.default_key
+        self.key: Callable[[Request], Hashable] = key or self.default_key
 
     def clean(self):
         for k, queue in self.queue_dict.copy().items():
@@ -31,14 +31,14 @@ class Limiter:
 
     @staticmethod
     def default_key(request: Request) -> str:
-        return request.client.host
+        return request.client.host if request.client is not None else "unknown"
 
     def check(self, request: Request):
         if not self.apply(self.key(request)):
             raise HTTPException(status_code=429)
 
     @classmethod
-    def depends(cls, interval: float, query: int) -> Depends:
+    def depends(cls, interval: float, query: int):
         self = cls.__new__(cls)
         self.__init__(interval, query)
         return Depends(self.check)

@@ -1,14 +1,15 @@
-import os
 import asyncio
+import os
+from pathlib import Path
 
 import uvicorn
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse
 
 from .config import config
-from .util import TimeRecorder
 from .rate_limiter import LimiterManager
+from .util import TimeRecorder
 
 
 class App(FastAPI):
@@ -16,19 +17,12 @@ class App(FastAPI):
     loop: asyncio.AbstractEventLoop | None
 
     async def run(self):
-        self.middleware('http')(self.timeout_handler)
+        self.middleware("http")(self.timeout_handler)
         self.add_middleware(
-            CORSMiddleware,
-            allow_origins=['*'],
-            allow_methods=['*'],
-            allow_headers=['*'],
-            allow_credentials=True
+            CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"], allow_credentials=True
         )
-        self.post('/internal/shutdown', include_in_schema=False)(self.shutdown)
-        server = uvicorn.Server(uvicorn.Config(
-            app=self,
-            **config.server.params
-        ))
+        self.post("/internal/shutdown", include_in_schema=False)(self.shutdown)
+        server = uvicorn.Server(uvicorn.Config(app=self, **config.server.params))
         self.server = server
         await server.serve()
 
@@ -50,12 +44,11 @@ class App(FastAPI):
         # 摆烂了，能退出就行👍
 
     async def shutdown(self, req: Request, key: str):
-        if req.client.host != '127.0.0.1' or key != config.key:
+        if req.client is None or req.client.host != "127.0.0.1" or key != config.key:
             raise HTTPException(status_code=403)
-        with open('RESTART', mode='wb') as f:
-            f.write(b'RESTART')
+        Path("RESTART").write_bytes(b"RESTART")
         asyncio.create_task(self.stop())
-        return {'code': 200}
+        return {"code": 200}
 
     @staticmethod
     async def timeout_handler(request: Request, call_next):
@@ -64,9 +57,10 @@ class App(FastAPI):
                 response = await asyncio.wait_for(call_next(request), config.limit.timeout)
                 response.headers["X-Process-Time"] = str(t.diff)
                 return response
-        except asyncio.TimeoutError:
-            return HTMLResponse(status_code=408, content='{"detail":"Timeout"}',
-                                headers={'Content-Type': 'application/json'})
+        except TimeoutError:
+            return HTMLResponse(
+                status_code=408, content='{"detail":"Timeout"}', headers={"Content-Type": "application/json"}
+            )
 
 
 app = App()

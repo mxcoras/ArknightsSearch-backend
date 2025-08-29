@@ -1,82 +1,130 @@
-# -*- coding: UTF-8 -*-
+"""Upload build artifacts to the server in GitHub Actions.
 
-import os
-import time
-import hashlib
+This script scans the ``core`` directory, uploads files using the server's upload endpoint,
+and then triggers a restart endpoint. It prefers pathlib, explicit typing, and robust async handling.
+"""
+
+from __future__ import annotations
+
 import asyncio
+import hashlib
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 import aiohttp
 
-client: aiohttp.ClientSession | None = None
 
+def sign(key: str) -> dict[str, str]:
+    """Generate request signature headers.
 
-def sign(key: str) -> dict:
+    Returns a mapping with "signature" and "timestamp" fields.
+    """
+    # Use integer seconds to match original server expectation
+    import time
+
     ts = str(int(time.time()))
-    signature = hashlib.sha256(f'{key}AS{ts}'.encode('utf-8')).hexdigest()
-    return {'signature': signature, 'timestamp': ts}
+    signature = hashlib.sha256(f"{key}AS{ts}".encode()).hexdigest()
+    return {"signature": signature, "timestamp": ts}
 
 
-async def upload(server: str, key: str, path: str, file: bytes):
-    global client
-    async with client.put(server, headers=sign(key), params={'path': path, 'site': 'back'},
-                          data={'file': file}) as r:
-        if r.status:
-            res = await r.json()
-            if res['code'] == 200:
-                return True
+@dataclass(slots=True)
+class UploadResult:
+    ok: bool
+    status: int
+    detail: str | None = None
+
+
+async def upload(
+    session: aiohttp.ClientSession,
+    server: str,
+    key: str,
+    path: str,
+    file_bytes: bytes,
+) -> UploadResult:
+    """Upload a single file.
+
+    Expects the server to accept PUT with params: path, site and JSON body response with a "code".
+    """
+    try:
+        async with session.put(
+            server,
+            headers=sign(key),
+            params={"path": path, "site": "back"},
+            data={"file": file_bytes},
+        ) as r:
+            status = r.status
+            # Try parse JSON; server response is expected to be JSON with a code
+            try:
+                payload = await r.json(content_type=None)
+            except Exception:  # noqa: BLE001 - tolerate non-JSON error bodies
+                text = await r.text()
+                return UploadResult(ok=False, status=status, detail=text[:500])
+
+            code = payload.get("code")
+            if isinstance(code, int) and code == 200:
+                return UploadResult(ok=True, status=status)
+            return UploadResult(ok=False, status=status, detail=str(code))
+    except aiohttp.ClientError as e:
+        return UploadResult(ok=False, status=0, detail=str(e))
+
+
+def iter_files(root: Path) -> Iterable[tuple[Path, str]]:
+    """Yield (absolute_file_path, posix_relative_path_from_root)."""
+    for p in root.rglob("*"):
+        if p.is_file():
+            yield p, p.relative_to(root).as_posix()
+
+
+def get_restart_url(server: str) -> str:
+    return server + "restart" if server.endswith("/") else server + "/restart"
+
+
+async def main() -> None:
+    server = os.environ.get("SERVER")
+    key = os.environ.get("KEY")
+
+    if not server:
+        raise RuntimeError("Environment variable SERVER is required")
+    if not key:
+        raise RuntimeError("Environment variable KEY is required")
+
+    root = Path.cwd() / "core"
+    if not root.exists():
+        raise FileNotFoundError(f"Directory not found: {root}")
+
+    files = list(iter_files(root))
+    total = len(files)
+
+    async with aiohttp.ClientSession() as session:
+        for idx, (abs_path, rel_path) in enumerate(files, start=1):
+            res = await upload(session, server, key, rel_path, abs_path.read_bytes())
+            if res.ok:
+                print(f"[{idx}/{total}] upload {rel_path} successfully")
             else:
-                return res['code']
-        else:
-            return r.status
+                print(f"[{idx}/{total}] upload {rel_path} failed\nstatus={res.status} detail={res.detail}")
+
+        # Trigger restart
+        restart_url = get_restart_url(server)
+        try:
+            async with session.post(restart_url, headers=sign(key)) as r:
+                try:
+                    resp = await r.json(content_type=None)
+                except Exception as exc:  # noqa: BLE001
+                    text = await r.text()
+                    raise RuntimeError(f"restart failed: HTTP {r.status} body={text[:500]}") from exc
+
+                if resp.get("code") == 200:
+                    print("restart server")
+                else:
+                    raise RuntimeError(f"restart failed: {resp}")
+        except aiohttp.ClientError as e:
+            raise RuntimeError(f"restart request error: {e}") from e
 
 
-def scan(path: str = os.path.join(os.getcwd(), 'core'), web_path=''):
-    res = []
-    files = os.listdir(path)
-    for file in files:
-        file_web_path = f'{web_path}/{file}'
-        file_path = os.path.join(path, file)
-        if os.path.isdir(file_path):
-            res.extend(scan(file_path, file_web_path))
-        else:
-            res.append([file_path, file_web_path])
-    return res
-
-
-async def run():
-    global client
-    client = aiohttp.ClientSession()
-
-    server = os.environ.get('SERVER')
-    key = os.environ.get('KEY')
-
-    files = scan()
-    y = len(files)
-    x = 0
-
-    for file in files:
-        x += 1
-        file[1] = file[1][1:]
-
-        with open(file[0], mode='rb') as f:
-            res = await upload(server, key, file[1], f.read())
-        if res is True:
-            print(f'[{x}/{y}] upload {file[1]} successfully')
-        else:
-            print(f'[{x}/{y}] upload {file[1]} failed \n{res}')
-
-    async with client.post(server + 'restart', headers=sign(key)) as r:
-        resp = await r.json()
-        if resp['code'] == 200:
-            print('restart server')
-        else:
-            print('restart failed', resp['data']['code'])
-            raise ValueError
-
-    await client.close()
-
-
-if __name__ == '__main__':
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(run())
+if __name__ == "__main__":
+    asyncio.run(main())

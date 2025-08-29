@@ -1,10 +1,10 @@
-import os
+from pathlib import Path
 from typing import Literal
 
-cwd = os.getcwd()
+project_root = Path(__file__).parent.parent
 
 # 输出数据
-data_path = os.path.join(cwd, 'data')
+data_path = project_root / "data"
 
-support_language = Literal['zh_CN']
-default_lang = 'zh_CN'
+support_language = Literal["zh_CN", "ja_JP", "en_US"]
+default_lang = "zh_CN"
